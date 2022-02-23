@@ -1,0 +1,3 @@
+*.micro.d.ts
+*.micro.js
+tsconfig.tsbuildinfo
