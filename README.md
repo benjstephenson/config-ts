@@ -7,7 +7,7 @@ which can be extracted unsafely using `getConfigUnsafe`.
 
 Takes some inspiration from [PureConfig](https://pureconfig.github.io/) and [Zod](https://zod.js.org/)
 
-```
+```Typescript
 const databaseConfig = readFromEnvironment({
   dbName: { key: "DATABASE_NAME", type: 'string' },
   connectionString: { key: "DATABASE_CONN_STR", type: 'string' },
