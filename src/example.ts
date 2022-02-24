@@ -1,4 +1,4 @@
-import { getConfigUnsafe, readFromEnvironment } from "./index"
+import { getConfigUnsafe, Infer, readFromEnvironment } from "./index"
 
 const databaseConfig = readFromEnvironment({
   dbName: { key: "DATABASE_NAME", type: 'string' },
@@ -12,6 +12,9 @@ const awsConfig = readFromEnvironment({
   services: { key: "AWS_ENABLED_SERVICES", type: 'list' }
 })
 
+type AwsConfig = Infer<typeof awsConfig>
+
+type DbConfig = Infer<typeof databaseConfig>
 
 const appConfig = getConfigUnsafe({
   databaseConfig,
