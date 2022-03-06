@@ -43,7 +43,7 @@ describe('Config Reader', () => {
 
   it('getConfigUnsafe returns a config object', () => {
     fc.assert(
-      fc.property(fc.string(), fc.integer(), fc.boolean(), (str, int, bool) => {
+      fc.property(fc.string(), fc.integer(), fc.boolean(), fc.array(fc.string()), (str, int, bool, list) => {
         process.env['FOO'] = str
         process.env['BAR'] = `${int}`
         process.env['BLAH'] = `${bool}`
@@ -51,10 +51,11 @@ describe('Config Reader', () => {
         const config = readFromEnvironment({
           foo: { key: 'FOO', type: 'string' },
           bar: { key: 'BAR', type: 'number' },
-          blah: { key: 'BLAH', type: 'boolean' }
+          blah: { key: 'BLAH', type: 'boolean' },
+          bazz: { key: 'BAZZ', type: 'list', default: list }
         })
 
-        assertThat(getConfigUnsafe({ config })).is({ config: { foo: str, bar: int, blah: bool } })
+        assertThat(getConfigUnsafe({ config })).is({ config: { foo: str, bar: int, blah: bool, bazz: list } })
       })
     )
   })

@@ -6,40 +6,46 @@ import { getRecordValidation } from '@benjstephenson/kittens-ts/Validation'
 
 const getVariable = (key: string): O.Option<string> => O.of(process.env[key])
 
-const get = <T>(key: string, fn: (v: string) => O.Option<T>): E.Either<string, T> => pipe(getVariable(key), O.flatMap(fn)).toEither(`Couldn't read ${key} from environment`)
+const get = <T>(key: string, alt: O.Option<T>, fn: (v: string) => O.Option<T>): E.Either<string, T> =>
+  pipe(getVariable(key), O.flatMap(fn)).orElse(alt).toEither(`Couldn't read ${key} from environment`)
 
-export const getInt = (key: string): E.Either<string, number> =>
-  get(key, v => {
+export const getInt = (key: string, alt: O.Option<number>): E.Either<string, number> =>
+  get(key, alt, v => {
     const attempt = parseInt(v)
     return isNaN(attempt) ? O.none<number>() : O.of(attempt)
   })
 
-export const getString = (key: string): E.Either<string, string> => get(key, O.of)
+export const getString = (key: string, alt: O.Option<string>): E.Either<string, string> => get(key, alt, O.of)
 
-export const getBoolean = (key: string): E.Either<string, boolean> =>
-  get(key, v => {
+export const getBoolean = (key: string, alt: O.Option<boolean>): E.Either<string, boolean> =>
+  get(key, alt, v => {
     const cased = v.toLowerCase()
 
     return cased === 'true' ? O.of(true) : cased === 'false' ? O.of(false) : O.none()
   })
 
-export const getStringList = (key: string, delim = ','): E.Either<string, string[]> => get(key, v => O.of(v.split(delim).map(x => x.trim())))
+export const getStringList = (key: string, alt: O.Option<string[]>, delim = ','): E.Either<string, string[]> => get(key, alt, v => O.of(v.split(delim).map(x => x.trim())))
 
-type ReifyConfigType<T> = T extends { type: 'string' }
-  ? string
-  : T extends { type: 'boolean' }
-  ? boolean
-  : T extends { type: 'number' }
-  ? number
-  : T extends { type: 'list' }
-  ? string[]
-  : never
+type ConfigTypeMap = {
+  string: string
+  boolean: boolean
+  number: number
+  list: string[]
+}
 
 type ConfigType = 'number' | 'string' | 'boolean' | 'list'
 
-type ConfigDesc = Record<string, { key: string; type: ConfigType }>
+type ConfigDesc<C, T extends keyof C = keyof C> = {
+  key: string
+  type: T
+  default?: C[T]
+}
 
-type ValidatedConfig<D extends ConfigDesc> = E.Either<NonEmptyArray<string>, { [K in keyof D]: ReifyConfigType<D[K]> }>
+type AnyConfigDesc<C = ConfigTypeMap, T extends keyof C = keyof C> = T extends keyof C ? ConfigDesc<C, T> : never
+
+type ConfigValue = { [x: string]: AnyConfigDesc }
+
+type ValidatedConfig<D extends ConfigValue> = E.Either<NonEmptyArray<string>, { [K in keyof D]: ConfigTypeMap[D[K]['type']] }>
 
 export type Infer<T extends ValidatedConfig<any>> = T extends E.Either<NonEmptyArray<string>, infer A> ? A : never
 
@@ -58,14 +64,15 @@ const getTypeReader = (type: ConfigType) => {
 
 const validateConfig = getRecordValidation<string>()
 
-export function readFromEnvironment<Desc extends ConfigDesc>(desc: Desc): ValidatedConfig<Desc>
+export function readFromEnvironment<Desc extends ConfigValue>(desc: Desc): ValidatedConfig<Desc>
 
-export function readFromEnvironment(desc: ConfigDesc) {
+export function readFromEnvironment(desc: ConfigValue) {
   const objectKeys = Object.keys(desc)
 
   const readConfig = objectKeys.reduce((acc, k) => {
     const { key, type } = desc[k]
-    const value = getTypeReader(type)(key).mapLeft(e => [e] as const)
+    const alt: any = O.of(desc[k].default)
+    const value = getTypeReader(type)(key, alt).mapLeft(e => [e] as const)
     return {
       ...acc,
       [k]: value
