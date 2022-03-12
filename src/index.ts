@@ -6,25 +6,24 @@ import { getRecordValidation } from '@benjstephenson/kittens-ts/Validation'
 
 const getVariable = (key: string): O.Option<string> => O.of(process.env[key])
 
-const get = <T>(key: string, alt: O.Option<T>, fn: (v: string) => O.Option<T>): E.Either<string, T> =>
-  pipe(getVariable(key), O.flatMap(fn)).orElse(alt).toEither(`Couldn't read ${key} from environment`)
+const get = <T>(key: string, fn: (v: string) => O.Option<T>): E.Either<string, T> => pipe(getVariable(key), O.flatMap(fn)).toEither(`Couldn't read ${key} from environment`)
 
-export const getInt = (key: string, alt: O.Option<number>): E.Either<string, number> =>
-  get(key, alt, v => {
+export const getInt = (key: string): E.Either<string, number> =>
+  get(key, v => {
     const attempt = parseInt(v)
     return isNaN(attempt) ? O.none<number>() : O.of(attempt)
   })
 
-export const getString = (key: string, alt: O.Option<string>): E.Either<string, string> => get(key, alt, O.of)
+export const getString = (key: string): E.Either<string, string> => get(key, O.of)
 
-export const getBoolean = (key: string, alt: O.Option<boolean>): E.Either<string, boolean> =>
-  get(key, alt, v => {
+export const getBoolean = (key: string): E.Either<string, boolean> =>
+  get(key, v => {
     const cased = v.toLowerCase()
 
     return cased === 'true' ? O.of(true) : cased === 'false' ? O.of(false) : O.none()
   })
 
-export const getStringList = (key: string, alt: O.Option<string[]>, delim = ','): E.Either<string, string[]> => get(key, alt, v => O.of(v.split(delim).map(x => x.trim())))
+export const getStringList = (key: string, delim = ','): E.Either<string, string[]> => get(key, v => O.of(v.split(delim).map(x => x.trim())))
 
 type ConfigTypeMap = {
   string: string
@@ -71,8 +70,17 @@ export function readFromEnvironment(desc: ConfigValue) {
 
   const readConfig = objectKeys.reduce((acc, k) => {
     const { key, type } = desc[k]
-    const alt: any = O.of(desc[k].default)
-    const value = getTypeReader(type)(key, alt).mapLeft(e => [e] as const)
+    const alt = O.of(desc[k].default)
+
+    // const a = getTypeReader(type)(key).bimap({
+    //   Left: err => alt.toEither([err]),
+    //   Right: val => E.right(val)
+    // })
+
+    const value = getTypeReader(type)(key)
+      .flatMapLeft(e => alt.toEither(e))
+      .mapLeft(e => [e] as const)
+
     return {
       ...acc,
       [k]: value

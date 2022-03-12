@@ -11,7 +11,7 @@ Takes some inspiration from [PureConfig](https://pureconfig.github.io/) and [Zod
 const databaseConfig = readFromEnvironment({
   dbName: { key: "DATABASE_NAME", type: 'string' },
   connectionString: { key: "DATABASE_CONN_STR", type: 'string' },
-  autoCommit: { key: "DATABASE_AUTO_COMMIT", type: 'boolean' }
+  autoCommit: { key: "DATABASE_AUTO_COMMIT", type: 'boolean', default: false }
 })
 
 const awsConfig = readFromEnvironment({

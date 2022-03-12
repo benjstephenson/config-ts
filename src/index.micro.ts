@@ -8,12 +8,11 @@ describe('Config Reader', () => {
       fc.property(fc.string(), fc.integer(), fc.boolean(), (str, int, bool) => {
         process.env['FOO'] = str
         process.env['BAR'] = `${int}`
-        process.env['BLAH'] = `${bool}`
 
         const config = readFromEnvironment({
           foo: { key: 'FOO', type: 'string' },
           bar: { key: 'BAR', type: 'number' },
-          blah: { key: 'BLAH', type: 'boolean' }
+          blah: { key: 'BLAH', type: 'boolean', default: bool }
         })
 
         config.bimap({
