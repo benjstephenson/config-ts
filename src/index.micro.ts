@@ -16,7 +16,7 @@ describe('Config Reader', () => {
         })
 
         config.bimap({
-          Left: fail,
+          Left: _errs => assertThat(false).withMessage('Unexpected left value').is(true),
           Right: cfg => assertThat(cfg).is({ foo: str, bar: int, blah: bool })
         })
       })
@@ -36,7 +36,7 @@ describe('Config Reader', () => {
 
     config.bimap({
       Left: errs => assertThat(errs).is(match.array.unordered(["Couldn't read FOO from environment", "Couldn't read BAR from environment", "Couldn't read BLAH from environment"])),
-      Right: fail
+      Right: _ => assertThat(false).withMessage('Unexpected right value').is(true)
     })
   })
 

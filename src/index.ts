@@ -1,8 +1,8 @@
-import * as E from '@benjstephenson/kittens-ts/Either'
-import * as O from '@benjstephenson/kittens-ts/Option'
-import { pipe } from '@benjstephenson/kittens-ts/core/functions'
-import { NonEmptyArray } from '@benjstephenson/kittens-ts/NonEmptyArray'
-import { getRecordValidation } from '@benjstephenson/kittens-ts/Validation'
+import * as E from 'kittens-ts/Either'
+import * as O from 'kittens-ts/Option'
+import { pipe } from 'kittens-ts/core/functions'
+import { NonEmptyArray } from 'kittens-ts/NonEmptyArray'
+import { getRecordValidation } from 'kittens-ts/Validation'
 
 const getVariable = (key: string): O.Option<string> => O.of(process.env[key])
 
@@ -71,11 +71,6 @@ export function readFromEnvironment(desc: ConfigValue) {
   const readConfig = objectKeys.reduce((acc, k) => {
     const { key, type } = desc[k]
     const alt = O.of(desc[k].default)
-
-    // const a = getTypeReader(type)(key).bimap({
-    //   Left: err => alt.toEither([err]),
-    //   Right: val => E.right(val)
-    // })
 
     const value = getTypeReader(type)(key)
       .flatMapLeft(e => alt.toEither(e))
