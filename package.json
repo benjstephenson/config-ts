@@ -10,6 +10,8 @@
   "scripts": {
     "prepare": "husky install",
     "build": "tsc --extendedDiagnostics -p .",
+    "clean": "rimraf dist/** && rimraf ./tsconfig.tsbuildinfo",
+    "clean:build": "npm run clean && npm run build",
     "test": "npm run build && mocha -r ts-node/register 'src/**/*.micro.ts'"
   },
   "author": "Benji Stephenson",
@@ -21,6 +23,7 @@
     "mismatched": "^2.9.2",
     "mocha": "^9.2.2",
     "prettier": "^2.4.1",
+    "rimraf": "^3.0.2",
     "thespian": "^2.10.1",
     "ts-node": "^10.7.0",
     "typescript": "^4.6.2"
