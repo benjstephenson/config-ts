@@ -8,14 +8,23 @@ const getVariable = (key: string): O.Option<string> => O.of(process.env[key])
 
 const get = <T>(key: string, fn: (v: string) => O.Option<T>): E.Either<string, T> => pipe(getVariable(key), O.flatMap(fn)).toEither(`Couldn't read ${key} from environment`)
 
+/*
+ * Read a `number` value from the environment, safely returning an `Either<string, number>`
+ */
 export const getInt = (key: string): E.Either<string, number> =>
   get(key, v => {
     const attempt = parseInt(v)
     return isNaN(attempt) ? O.none<number>() : O.of(attempt)
   })
 
+/*
+ * Read a `string` value from the environment, safely returning an `Either<string, string>`
+ */
 export const getString = (key: string): E.Either<string, string> => get(key, O.of)
 
+/*
+ * Read a `boolean` value from the environment, safely returning an `Either<string, boolean>`
+ */
 export const getBoolean = (key: string): E.Either<string, boolean> =>
   get(key, v => {
     const cased = v.toLowerCase()
@@ -23,6 +32,9 @@ export const getBoolean = (key: string): E.Either<string, boolean> =>
     return cased === 'true' ? O.of(true) : cased === 'false' ? O.of(false) : O.none()
   })
 
+/*
+ * Read a `string[]` value from the environment, safely returning an `Either<string, string[]>`
+ */
 export const getStringList = (key: string, delim = ','): E.Either<string, string[]> => get(key, v => O.of(v.split(delim).map(x => x.trim())))
 
 type ConfigTypeMap = {
@@ -32,8 +44,14 @@ type ConfigTypeMap = {
   list: string[]
 }
 
+/*
+ * Available values for use in the config micro format
+ */
 type ConfigType = 'number' | 'string' | 'boolean' | 'list'
 
+/*
+ * This describes the config micro format used to describe config values to read
+ */
 type ConfigDesc<C, T extends keyof C = keyof C> = {
   key: string
   type: T
@@ -61,10 +79,22 @@ const getTypeReader = (type: ConfigType) => {
   }
 }
 
-const validateConfig = getRecordValidation<string>()
+export const getConfig = getRecordValidation<string>()
 
+/*
+ * Given the `ConfigValue` description, read the values from the node process environment
+ * and accumulate any errors into the resulting Either.
+ * The right side of the returned Either is inferred from the provided config value.
+ * @example
+ * import { getConfig, getConfigUnsafe, Infer, readFromEnvironment } from './index'
+ *
+ * const databaseConfig = readFromEnvironment({
+ *   dbName: { key: 'DATABASE_NAME', type: 'string' },
+ *   connectionString: { key: 'DATABASE_CONN_STR', type: 'string' },
+ *   autoCommit: { key: 'DATABASE_AUTO_COMMIT', type: 'boolean', default: false }
+ * })
+ */
 export function readFromEnvironment<Desc extends ConfigValue>(desc: Desc): ValidatedConfig<Desc>
-
 export function readFromEnvironment(desc: ConfigValue) {
   const objectKeys = Object.keys(desc)
 
@@ -82,9 +112,29 @@ export function readFromEnvironment(desc: ConfigValue) {
     }
   }, {})
 
-  return validateConfig(readConfig)
+  return getConfig(readConfig)
 }
 
+/*
+ * Utility type to infer the config type from a ValidatedConfig<T> for use in the application.
+ * @example
+ * const databaseConfig = readFromEnvironment({
+ *
+ * dbName: { key: "DATABASE_NAME", type: 'string' },
+ *   connectionString: { key: "DATABASE_CONN_STR", type: 'string' },
+ *   autoCommit: { key: "DATABASE_AUTO_COMMIT", type: 'boolean', default: false }
+ *  })
+ *
+ * // Grabs the type for use in the app code, type would be { region: string, secret: string, services: string[] }
+ * type DBConfig = Infer<typeof databaseConfig>
+ *
+ *  Resulting type of DBConfig is
+ *  {
+ *    dbName: string,
+ *    connectionString: string,
+ *    autoCommit: boolean
+ *  }
+ */
 export type InferConfig<Rec extends Record<string, E.Either<NonEmptyArray<string>, any>>> = {
   [K in keyof Rec]: Rec[K] extends E.Either<NonEmptyArray<string>, infer A> ? A : never
 }
@@ -102,6 +152,6 @@ export function getConfigUnsafe(validated: Record<string, E.Either<NonEmptyArray
       },
       Right: cfg => cfg
     },
-    validateConfig(validated)
+    getConfig(validated)
   )
 }
