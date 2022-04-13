@@ -62,7 +62,7 @@ type AnyConfigDesc<C = ConfigTypeMap, T extends keyof C = keyof C> = T extends k
 
 type ConfigValue = { [x: string]: AnyConfigDesc }
 
-type ValidatedConfig<D extends ConfigValue> = E.Either<NonEmptyArray<string>, { [K in keyof D]: ConfigTypeMap[D[K]['type']] }>
+export type ValidatedConfig<D extends ConfigValue> = E.Either<NonEmptyArray<string>, { [K in keyof D]: ConfigTypeMap[D[K]['type']] }>
 
 export type Infer<T extends ValidatedConfig<any>> = T extends E.Either<NonEmptyArray<string>, infer A> ? A : never
 
@@ -95,7 +95,7 @@ export const getConfig = getRecordValidation<string>()
  * })
  */
 export function readFromEnvironment<Desc extends ConfigValue>(desc: Desc): ValidatedConfig<Desc>
-export function readFromEnvironment(desc: ConfigValue) {
+export function readFromEnvironment(desc: ConfigValue): ValidatedConfig<ConfigValue> {
   const objectKeys = Object.keys(desc)
 
   const readConfig = objectKeys.reduce((acc, k) => {
