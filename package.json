@@ -1,5 +1,5 @@
 {
-  "name": "config-ts",
+  "name": "@benjstephenson/config-ts",
   "version": "0.0.2",
   "description": "Read config values from a node environment",
   "types": "dist/index.d.ts",
