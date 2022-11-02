@@ -1,6 +1,8 @@
-import { assertThat, match } from 'mismatched'
-import { getConfigUnsafe, readFromEnvironment } from '.'
+import {assertThat, match} from 'mismatched'
+import {getConfigUnsafe, readFromEnvironment} from '.'
 import * as fc from 'fast-check'
+import * as E from './Either'
+import {pipe} from "./pipe";
 
 describe('Config Reader', () => {
   it('successfully reads from the environment', () => {
@@ -10,15 +12,18 @@ describe('Config Reader', () => {
         process.env['BAR'] = `${int}`
 
         const config = readFromEnvironment({
-          foo: { key: 'FOO', type: 'string' },
-          bar: { key: 'BAR', type: 'number' },
-          blah: { key: 'BLAH', type: 'boolean', default: bool }
+          foo: {key: 'FOO', type: 'string'},
+          bar: {key: 'BAR', type: 'number'},
+          blah: {key: 'BLAH', type: 'boolean', default: bool}
         })
 
-        config.bimap({
-          Left: _errs => assertThat(false).withMessage('Unexpected left value').is(true),
-          Right: cfg => assertThat(cfg).is({ foo: str, bar: int, blah: bool })
-        })
+        pipe(
+          config,
+          E.match({
+            Left: _errs => assertThat(false).withMessage('Unexpected left value').is(true),
+            Right: cfg => assertThat(cfg).is({foo: str, bar: int, blah: bool})
+          })
+        )
       })
     )
   })
@@ -29,15 +34,18 @@ describe('Config Reader', () => {
     delete process.env['BLAH']
 
     const config = readFromEnvironment({
-      foo: { key: 'FOO', type: 'string' },
-      bar: { key: 'BAR', type: 'number' },
-      blah: { key: 'BLAH', type: 'boolean' }
+      foo: {key: 'FOO', type: 'string'},
+      bar: {key: 'BAR', type: 'number'},
+      blah: {key: 'BLAH', type: 'boolean'}
     })
 
-    config.bimap({
-      Left: errs => assertThat(errs).is(match.array.unordered(["Couldn't read FOO from environment", "Couldn't read BAR from environment", "Couldn't read BLAH from environment"])),
-      Right: _ => assertThat(false).withMessage('Unexpected right value').is(true)
-    })
+    pipe(
+      config,
+      E.match({
+        Left: errs => assertThat(errs).is(match.array.unordered(["Couldn't read FOO from environment", "Couldn't read BAR from environment", "Couldn't read BLAH from environment"])),
+        Right: _ => assertThat(false).withMessage('Unexpected right value').is(true)
+      })
+    )
   })
 
   it('getConfigUnsafe returns a config object', () => {
@@ -48,13 +56,13 @@ describe('Config Reader', () => {
         process.env['BLAH'] = `${bool}`
 
         const config = readFromEnvironment({
-          foo: { key: 'FOO', type: 'string' },
-          bar: { key: 'BAR', type: 'number' },
-          blah: { key: 'BLAH', type: 'boolean' },
-          bazz: { key: 'BAZZ', type: 'list', default: list }
+          foo: {key: 'FOO', type: 'string'},
+          bar: {key: 'BAR', type: 'number'},
+          blah: {key: 'BLAH', type: 'boolean'},
+          bazz: {key: 'BAZZ', type: 'list', default: list}
         })
 
-        assertThat(getConfigUnsafe({ config })).is({ config: { foo: str, bar: int, blah: bool, bazz: list } })
+        assertThat(getConfigUnsafe({config})).is({config: {foo: str, bar: int, blah: bool, bazz: list}})
       })
     )
   })
@@ -65,11 +73,11 @@ describe('Config Reader', () => {
     delete process.env['BLAH']
 
     const config = readFromEnvironment({
-      foo: { key: 'FOO', type: 'string' },
-      bar: { key: 'BAR', type: 'number' },
-      blah: { key: 'BLAH', type: 'boolean' }
+      foo: {key: 'FOO', type: 'string'},
+      bar: {key: 'BAR', type: 'number'},
+      blah: {key: 'BLAH', type: 'boolean'}
     })
 
-    assertThat(() => getConfigUnsafe({ config })).throwsError(match.string.startsWith('Missing config keys at startup'))
+    assertThat(() => getConfigUnsafe({config})).throwsError(match.string.startsWith('Missing config keys at startup'))
   })
 })
