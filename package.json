@@ -1,6 +1,6 @@
 {
   "name": "@benjstephenson/config-ts",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Read config values from a node environment",
   "types": "dist/index.d.ts",
   "repository": {
