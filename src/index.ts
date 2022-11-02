@@ -39,7 +39,10 @@ export const getBoolean = (key: string): E.Either<string, boolean> =>
 /*
  * Read a `string[]` value from the environment, safely returning an `Either<string, string[]>`
  */
-export const getStringList = (key: string, delim = ","): E.Either<string, string[]> => get(key, v => O.of(v.split(delim).map(x => x.trim())));
+export const getStringList = (key: string, delim = ","): E.Either<string, string[]> => get(key, v => {
+  const array = v.length < 1 ? [] : v.split(delim).map(x => x.trim())
+  return O.of(array.filter(i => i.length > 0))
+});
 
 type ConfigTypeMap = {
   string: string
