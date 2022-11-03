@@ -1,48 +1,48 @@
-import * as E from "./Either";
-import * as O from "./Option";
-import { NonEmptyArray } from "./NonEmptyArray";
-import { pipe } from "./pipe";
+import * as E from './Either'
+import * as O from './Option'
+import { NonEmptyArray } from './NonEmptyArray'
+import { compose } from './pipe'
 
-const getVariable = (key: string): O.Option<string> => O.of(process.env[key]);
+const getVariable = (key: string): O.Option<string> => O.of(process.env[key])
 
 const get = <T>(key: string, fn: (v: string) => O.Option<T>): E.Either<string, T> =>
-  pipe(
+  compose(
     getVariable(key),
     O.flatMap(fn),
     O.toEither(`Couldn't read ${key} from environment`)
-  );
+  )
 
 /*
  * Read a `number` value from the environment, safely returning an `Either<string, number>`
  */
-export const getInt = (key: string): E.Either<string, number> =>
-  get(key, v => {
-    const attempt = parseInt(v);
-    return isNaN(attempt) ? O.none() : O.of(attempt);
-  });
+const readInt: (v: string) => O.Option<number> = v => {
+  const attempt = parseInt(v)
+  return isNaN(attempt) ? O.none() : O.of(attempt)
+}
+export const getInt = (key: string): E.Either<string, number> => get(key, readInt)
 
 /*
  * Read a `string` value from the environment, safely returning an `Either<string, string>`
  */
-export const getString = (key: string): E.Either<string, string> => get(key, O.of);
+export const getString = (key: string): E.Either<string, string> => get(key, O.of)
 
 /*
  * Read a `boolean` value from the environment, safely returning an `Either<string, boolean>`
  */
-export const getBoolean = (key: string): E.Either<string, boolean> =>
-  get(key, v => {
-    const cased = v.toLowerCase();
-
-    return cased === "true" ? O.of(true) : cased === "false" ? O.of(false) : O.none();
-  });
+const readBoolean: (v: string) => O.Option<boolean> = v => {
+  const cased = v.toLowerCase()
+  return cased === 'true' ? O.of(true) : cased === 'false' ? O.of(false) : O.none()
+}
+export const getBoolean = (key: string): E.Either<string, boolean> => get(key, readBoolean)
 
 /*
  * Read a `string[]` value from the environment, safely returning an `Either<string, string[]>`
  */
-export const getStringList = (key: string, delim = ","): E.Either<string, string[]> => get(key, v => {
+export const getStringList = (key: string, delim = ','): E.Either<string, string[]> => get(key, v => {
   const array = v.length < 1 ? [] : v.split(delim).map(x => x.trim())
   return O.of(array.filter(i => i.length > 0))
-});
+})
+
 
 type ConfigTypeMap = {
   string: string
@@ -54,7 +54,7 @@ type ConfigTypeMap = {
 /*
  * Available values for use in the config micro format
  */
-type ConfigType = "number" | "string" | "boolean" | "list"
+type ConfigType = 'number' | 'string' | 'boolean' | 'list'
 
 /*
  * This describes the config micro format used to describe config values to read
@@ -69,24 +69,24 @@ type AnyConfigDesc<C = ConfigTypeMap, T extends keyof C = keyof C> = T extends k
 
 type ConfigValue = { [x: string]: AnyConfigDesc }
 
-export type ValidatedConfig<D extends ConfigValue> = E.Either<NonEmptyArray<string>, { [K in keyof D]: ConfigTypeMap[D[K]["type"]] }>
+export type ValidatedConfig<D extends ConfigValue> = E.Either<NonEmptyArray<string>, { [K in keyof D]: ConfigTypeMap[D[K]['type']] }>
 
-export type Infer<T extends ValidatedConfig<any>> = T extends E.Either<NonEmptyArray<string>, infer A> ? A : never
+export type Infer<T extends ValidatedConfig<any>> = T extends E.Right<infer A> ? A : never
 
 const getTypeReader = (type: ConfigType) => {
   switch (type) {
-    case "string":
-      return getString;
-    case "number":
-      return getInt;
-    case "boolean":
-      return getBoolean;
-    case "list":
-      return getStringList;
+    case 'string':
+      return getString
+    case 'number':
+      return getInt
+    case 'boolean':
+      return getBoolean
+    case 'list':
+      return getStringList
   }
-};
+}
 
-export const getConfig = E.sequenceR;
+export const getConfig = E.sequenceR
 
 /*
  * Given the `ConfigValue` description, read the values from the node process environment
@@ -103,25 +103,25 @@ export const getConfig = E.sequenceR;
  */
 export function readFromEnvironment<Desc extends ConfigValue>(desc: Desc): ValidatedConfig<Desc>
 export function readFromEnvironment(desc: ConfigValue): ValidatedConfig<ConfigValue> {
-  const objectKeys = Object.keys(desc);
+  const objectKeys = Object.keys(desc)
 
   const readConfig = objectKeys.reduce((acc, k) => {
-    const { key, type } = desc[k];
-    const alt = O.of(desc[k].default);
+    const { key, type } = desc[k]
+    const alt = O.of(desc[k].default)
 
-    const value = pipe(
+    const value = compose(
       getTypeReader(type)(key),
       E.flatMapLeft((e: string) => O.toEither([e] as NonEmptyArray<string>)(alt)),
       E.mapLeft(e => e)
-    );
+    )
 
     return {
       ...acc,
       [k]: value
-    };
-  }, {});
+    }
+  }, {})
 
-  return getConfig(readConfig);
+  return getConfig(readConfig)
 }
 
 /*
@@ -154,15 +154,13 @@ export function getConfigUnsafe<Rec extends Record<string, E.Either<NonEmptyArra
   [K in keyof Rec]: Rec[K] extends E.Either<NonEmptyArray<string>, infer A> ? A : never
 }
 export function getConfigUnsafe(validated: Record<string, E.Either<NonEmptyArray<string>, any>>) {
-  return pipe(
+  return compose(
     getConfig(validated),
-    E.match(
-      {
-        Left: errs => {
-          throw new Error(`Missing config keys at startup: ${errs.join(", ")}`);
-        },
-        Right: cfg => cfg
-      }
-    )
-  );
+    E.match({
+      Left: errs => {
+        throw new Error(`Missing config keys at startup: ${errs.join(', ')}`)
+      },
+      Right: cfg => cfg
+    })
+  )
 }
