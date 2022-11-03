@@ -1,5 +1,5 @@
 import {NonEmptyArray, concat} from "./NonEmptyArray"
-import {pipe} from "./pipe"
+import {compose} from "./pipe"
 
 export type Either<E, A> = Left<E> | Right<A>
 
@@ -50,7 +50,7 @@ export function sequenceR<R extends Record<string, Either<NonEmptyArray<string>,
 export function sequenceR(record: Record<string, Either<NonEmptyArray<string>, any>>): Either<NonEmptyArray<string>, Record<string, any>> {
   const [head, ...tail] = Object.keys(record)
 
-  const initial = pipe(
+  const initial = compose(
     record[head],
     mapLeft(e => e as NonEmptyArray<string>),
     map(v => ({[head]: v}))
@@ -58,7 +58,7 @@ export function sequenceR(record: Record<string, Either<NonEmptyArray<string>, a
 
   return tail.reduce(
     (acc, key) =>
-      pipe(
+      compose(
         record[key],
         match({
           Left: err =>

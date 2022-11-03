@@ -2,7 +2,7 @@ import { assertThat, match } from 'mismatched'
 import { getConfigUnsafe, readFromEnvironment } from '.'
 import * as fc from 'fast-check'
 import * as E from './Either'
-import { pipe } from './pipe'
+import { compose } from './pipe'
 
 describe('Config Reader', () => {
   it('successfully reads from the environment', () => {
@@ -17,7 +17,7 @@ describe('Config Reader', () => {
           blah: { key: 'BLAH', type: 'boolean', default: bool }
         })
 
-        pipe(
+        compose(
           config,
           E.match({
             Left: _errs => assertThat(false).withMessage('Unexpected left value').is(true),
@@ -39,7 +39,7 @@ describe('Config Reader', () => {
       blah: { key: 'BLAH', type: 'boolean' }
     })
 
-    pipe(
+    compose(
       config,
       E.match({
         Left: errs => assertThat(errs).is(match.array.unordered(['Couldn\'t read FOO from environment', 'Couldn\'t read BAR from environment', 'Couldn\'t read BLAH from environment'])),

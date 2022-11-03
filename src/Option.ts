@@ -27,4 +27,3 @@ export const map = <A, B>(f: (a: A) => B) => (fa: Option<A>): Option<B> => isSom
 export const flatMap = <A, B>(f: (a: A) => Option<B>) => (fa: Option<A>): Option<B> => isSome(fa) ? f(fa.value) : fa
 
 export const toEither = <E, A>(e: E) => (fa: Option<A>): E.Either<E, A> => isSome(fa) ? E.right(fa.value) : E.left(e)
-
