@@ -71,7 +71,7 @@ type ConfigValue = { [x: string]: AnyConfigDesc }
 
 export type ValidatedConfig<D extends ConfigValue> = E.Either<NonEmptyArray<string>, { [K in keyof D]: ConfigTypeMap[D[K]['type']] }>
 
-export type Infer<T extends ValidatedConfig<any>> = T extends E.Right<infer A> ? A : never
+export type Infer<T extends ValidatedConfig<ConfigValue>> = T extends E.Right<infer A> ? A : never
 
 const getTypeReader = (type: ConfigType) => {
   switch (type) {

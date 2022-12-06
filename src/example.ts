@@ -1,4 +1,5 @@
 import { getConfigUnsafe, Infer, readFromEnvironment } from './index'
+import { unicode } from 'fast-check'
 
 const databaseConfig = readFromEnvironment({
   dbName: { key: 'DATABASE_NAME', type: 'string' },
@@ -20,3 +21,23 @@ const appConfig = getConfigUnsafe({
   databaseConfig,
   awsConfig
 })
+
+const notSoGood = () => {
+
+  const getString = (key: string) => {
+    const value = process.env[key]
+    if (value === undefined)
+     throw new Error(`value for key ${key} is undefined`)
+
+    return value
+  }
+
+  const getBoolean = (key: string) => {
+    const strValue = getString(key)
+    return strValue.toLowerCase() === "true"
+  }
+
+  const dbName = getString("DATABASE_NAME")
+  const autoCommit = getBoolean("DATABASE_AUTO_COMMIT")
+
+}
