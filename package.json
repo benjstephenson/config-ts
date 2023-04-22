@@ -1,6 +1,6 @@
 {
   "name": "@benjstephenson/config-ts",
-  "version": "0.0.4-dev",
+  "version": "0.0.0-semanitc-release",
   "description": "Read config values from a node environment",
   "types": "dist/index.d.ts",
   "repository": {
