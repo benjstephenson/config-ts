@@ -10,7 +10,8 @@ const databaseConfig = readFromEnvironment({
 const awsConfig = readFromEnvironment({
   region: { key: 'AWS_REGION', type: 'string' },
   secret: { key: 'AWS_SECRET', type: 'string' },
-  services: { key: 'AWS_ENABLED_SERVICES', type: 'list' }
+  seeds: { key: 'RAND_SEEDS', type: 'number[]' },
+  services: { key: 'AWS_ENABLED_SERVICES', type: 'string[]' }
 })
 
 type AwsConfig = Infer<typeof awsConfig>

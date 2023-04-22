@@ -1,60 +1,95 @@
 import * as E from './Either'
 import * as O from './Option'
-import { NonEmptyArray } from './NonEmptyArray'
+import { NonEmptyArray, concat} from './NonEmptyArray'
 import { compose } from './pipe'
+import { None } from './Option'
 
-const getVariable = (key: string): O.Option<string> => O.of(process.env[key])
+type Validation<A> = E.Either<NonEmptyArray<string>, A>
 
-const get = <T>(key: string, fn: (v: string) => O.Option<T>): E.Either<string, T> =>
+const getVariable: (key: string) => Validation<string> = key => compose(
+  O.of(process.env[key]),
+  O.toEither<NonEmptyArray<string>, string>([`Couldn't read ${key} from environment`])
+)
+
+const get: <T>(key: string, fn: (v: string) => Validation<T>) => Validation<T> = (key, fn) =>
   compose(
     getVariable(key),
-    O.flatMap(fn),
-    O.toEither(`Couldn't read ${key} from environment`)
+    E.flatMap(fn)
   )
 
-/*
- * Read a `number` value from the environment, safely returning an `Either<string, number>`
- */
-const readInt: (v: string) => O.Option<number> = v => {
+const readInt: (key: string) => (v: string) => Validation<number> = k => v => {
   const attempt = parseInt(v)
-  return isNaN(attempt) ? O.none() : O.of(attempt)
+  return isNaN(attempt) ? E.left([`Key [${k}] provided invalid integer [${v}]`]) : E.right(attempt)
 }
-export const getInt = (key: string): E.Either<string, number> => get(key, readInt)
 
 /*
- * Read a `string` value from the environment, safely returning an `Either<string, string>`
+ * Read a `number` value from the environment, safely returning an `Either<string[], number>`
  */
-export const getString = (key: string): E.Either<string, string> => get(key, O.of)
+export const getInt = (key: string): Validation<number> => get(key, readInt(key))
 
 /*
- * Read a `boolean` value from the environment, safely returning an `Either<string, boolean>`
+ * Read a `string` value from the environment, safely returning an `Either<string[], string>`
  */
-const readBoolean: (v: string) => O.Option<boolean> = v => {
-  const cased = v.toLowerCase()
-  return cased === 'true' ? O.of(true) : cased === 'false' ? O.of(false) : O.none()
+export const getString: (key: string) => Validation<string> = key => get(key, E.right)
+
+const readBoolean: (key: string) => (v: string) => Validation<boolean> = k => v => {
+  const cased = v.trim().toLowerCase()
+  return cased === 'true'
+    ? E.right(true)
+    : cased === 'false'
+      ? E.right(false)
+      : E.left([`Key [${k}] provided an invalid boolean [${v}]`])
 }
-export const getBoolean = (key: string): E.Either<string, boolean> => get(key, readBoolean)
 
 /*
- * Read a `string[]` value from the environment, safely returning an `Either<string, string[]>`
+ * Read a `boolean` value from the environment, safely returning an `Either<string[], boolean>`
  */
-export const getStringList = (key: string, delim = ','): E.Either<string, string[]> => get(key, v => {
-  const array = v.length < 1 ? [] : v.split(delim).map(x => x.trim())
-  return O.of(array.filter(i => i.length > 0))
-})
+export const getBoolean: (key: string) => Validation<boolean> = key => get(key, readBoolean(key))
+
+/*
+ * Read a `string[]` value from the environment, safely returning an `Either<string[], string[]>`
+ */
+export const getStringList = (key: string, delim = ','): Validation<string[]> => getList(s => E.of(s))(key, delim)
+
+/*
+ * Read a `number[]` value from the environment, safely returning an `Either<string[], number[]>`
+ */
+export const getNumberList = (key: string, delim = ','): Validation<number[]> => getList(readInt(key))(key, delim)
+
+const getList = <R>(f: (s: string) => Validation<R>) => (key: string, delim = ','): Validation<R[]> => compose(
+  getVariable(key),
+  E.flatMap<NonEmptyArray<string>, string, R[]>(v => {
+    const array = v.length < 1
+      ? []
+      : v.split(delim)
+        .map(x => x.trim())
+        .filter(e => e.length > 0)
+        .map(f)
+
+    return  array.reduce(
+      (acc, val) =>
+        E.isLeft(acc)
+          ? E.isLeft(val) ? E.left(concat(acc.value, val.value)) : acc
+          : E.isLeft(val) ? val : E.right(acc.value.concat([val.value]))
+      ,
+      E.of<NonEmptyArray<string>, R[]>([])
+    )
+  })
+)
 
 
 type ConfigTypeMap = {
   string: string
   boolean: boolean
   number: number
-  list: string[]
+  'string[]': string[]
+  'number[]': number[]
 }
 
 /*
  * Available values for use in the config micro format
  */
-type ConfigType = 'number' | 'string' | 'boolean' | 'list'
+type ConfigType = 'number' | 'string' | 'boolean' | 'string[]' | 'number[]'
 
 /*
  * This describes the config micro format used to describe config values to read
@@ -81,8 +116,10 @@ const getTypeReader = (type: ConfigType) => {
       return getInt
     case 'boolean':
       return getBoolean
-    case 'list':
+    case 'string[]':
       return getStringList
+    case 'number[]':
+      return getNumberList
   }
 }
 
@@ -111,8 +148,7 @@ export function readFromEnvironment(desc: ConfigValue): ValidatedConfig<ConfigVa
 
     const value = compose(
       getTypeReader(type)(key),
-      E.flatMapLeft((e: string) => O.toEither([e] as NonEmptyArray<string>)(alt)),
-      E.mapLeft(e => e)
+      E.flatMapLeft(e => O.toEither(e)(alt))
     )
 
     return {

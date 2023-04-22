@@ -13,6 +13,7 @@ export type Right<A> = {
   readonly value: A
 }
 
+export const of = <E, A>(a: A): Either<E, A> => right(a);
 
 export const left = <E>(e: E): Left<E> => ({_tag: 'left', value: e})
 export const right = <A>(a: A): Right<A> => ({_tag: 'right', value: a})
@@ -43,6 +44,7 @@ export const flatMapLeft =
 
 export const match = <E, A, B>(o: { Left: (e: E) => B, Right: (a: A) => B }) => (fa: Either<E, A>) =>
   isLeft(fa) ? o.Left(fa.value) : o.Right(fa.value)
+
 
 export function sequenceR<R extends Record<string, Either<NonEmptyArray<string>, any>>>(
   record: R

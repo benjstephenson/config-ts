@@ -50,32 +50,36 @@ describe('Config Reader', () => {
 
   it('getConfigUnsafe returns a config object', () => {
     fc.assert(
-      fc.property(fc.string(), fc.integer(), fc.boolean(), fc.array(fc.string()), (str, int, bool, list) => {
+      fc.property(fc.string(), fc.integer(), fc.boolean(), fc.array(fc.integer()), fc.array(fc.string()), (str, int, bool, nums, list) => {
 
         fc.pre(list.every(s => !s.includes(',')))
 
         process.env['FOO'] = str
         process.env['BAR'] = `${int}`
         process.env['BLAH'] = `${bool}`
+        process.env['BOO'] = nums.toString()
         process.env['BAZZ'] = list.toString()
 
         const config = readFromEnvironment({
           foo: { key: 'FOO', type: 'string' },
           bar: { key: 'BAR', type: 'number' },
           blah: { key: 'BLAH', type: 'boolean' },
-          bazz: { key: 'BAZZ', type: 'list' }
+          boo: { key: 'BOO', type: 'number[]' },
+          bazz: { key: 'BAZZ', type: 'string[]' }
         })
+
 
         assertThat(getConfigUnsafe({ config })).is({
           config: {
             foo: str,
             bar: int,
             blah: bool,
+            boo: nums,
             bazz: list.map(i => i.trim()).filter(i => i.length > 0)
           }
         })
       })
-    )
+      , { verbose: true })
   })
 
 
@@ -96,7 +100,7 @@ describe('Config Reader', () => {
           foo: { key: 'FOO', type: 'string', default: str },
           bar: { key: 'BAR', type: 'number', default: int },
           blah: { key: 'BLAH', type: 'boolean', default: bool },
-          bazz: { key: 'BAZZ', type: 'list', default: sanitisedList }
+          bazz: { key: 'BAZZ', type: 'string[]', default: sanitisedList }
         })
 
         assertThat(getConfigUnsafe({ config })).is({
