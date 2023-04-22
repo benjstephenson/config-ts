@@ -3,6 +3,6 @@
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-if [$BRANCH = "main" || $BRANCH = "next"]; then
+if [ $BRANCH = "main" ] || [ $BRANCH = "next" ]; then
   npx --no-install commitlint --edit "$1"
 fi
