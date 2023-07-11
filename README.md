@@ -2,7 +2,7 @@
 
 Small library that reads config values from the node process environment.
 Config objects are described using a micro format which informs the library how to fetch them.
-Errors fetching values are accumulated when the config objects are instantiated and ultimately return an `Either<NonEmptyList<string>, Config>` 
+Errors fetching values are accumulated when the config objects are instantiated and ultimately return an `Either<NonEmptyList<string>, Config>`
 which can be extracted unsafely using `getConfigUnsafe`.
 
 Takes some inspiration from [PureConfig](https://pureconfig.github.io/) and [Zod](https://zod.js.org/)
@@ -34,7 +34,7 @@ const appConfig = getConfigUnsafe({
  {
    databaseConfig: { dbName: string, connectionString: string, autoCommit: boolean },
    awsConfig: { region: string, secret: string, services: string[] }
- }  
+ }
 */
 
 ```
