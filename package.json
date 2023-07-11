@@ -25,6 +25,7 @@
     "mismatched": "^2.11.1",
     "mocha": "^10.2.0",
     "prettier": "^2.4.1",
+    "pretty-quick": "^3.1.3",
     "rimraf": "^5.0.0",
     "thespian": "^2.11.1",
     "ts-node": "^10.7.0",
