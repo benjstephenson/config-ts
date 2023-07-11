@@ -1,39 +1,40 @@
 import { assertThat, match } from 'mismatched'
-import { getConfigUnsafe, readFromEnvironment } from '.'
+import { Infer, getConfigUnsafe, readFromEnvironment } from '.'
 import * as fc from 'fast-check'
 import * as E from './Either'
 import { compose } from './pipe'
 
 describe('Config Reader', () => {
-  it('successfully reads from the environment', () => {
+  it('successfully reads from the environment', async () => {
     fc.assert(
-      fc.property(fc.string(), fc.integer(), fc.boolean(), (str, int, bool) => {
+      fc.asyncProperty(fc.string(), fc.integer(), fc.boolean(), async (str, int, bool) => {
         process.env['FOO'] = str
         process.env['BAR'] = `${int}`
 
-        const config = readFromEnvironment({
+        const config = await readFromEnvironment({
           foo: { key: 'FOO', type: 'string' },
           bar: { key: 'BAR', type: 'number' },
-          blah: { key: 'BLAH', type: 'boolean', default: bool }
+          blah: { key: 'BLAH', type: 'boolean', default: bool },
+          boo: { key: 'BOO', type: 'string', override: (key: string) => Promise.resolve('overidden') }
         })
 
         compose(
           config,
           E.match({
             Left: _errs => assertThat(false).withMessage('Unexpected left value').is(true),
-            Right: cfg => assertThat(cfg).is({ foo: str, bar: int, blah: bool })
+            Right: cfg => assertThat(cfg).is({ foo: str, bar: int, blah: bool, boo: 'overidden' })
           })
         )
       })
     )
   })
 
-  it('accumulates errors reading from the environment', () => {
+  it('accumulates errors reading from the environment', async () => {
     delete process.env['FOO']
     delete process.env['BAR']
     delete process.env['BLAH']
 
-    const config = readFromEnvironment({
+    const config = await readFromEnvironment({
       foo: { key: 'FOO', type: 'string' },
       bar: { key: 'BAR', type: 'number' },
       blah: { key: 'BLAH', type: 'boolean' }
@@ -42,7 +43,8 @@ describe('Config Reader', () => {
     compose(
       config,
       E.match({
-        Left: errs => assertThat(errs).is(match.array.unordered(['Couldn\'t read FOO from environment', 'Couldn\'t read BAR from environment', 'Couldn\'t read BLAH from environment'])),
+        Left: errs =>
+          assertThat(errs).is(match.array.unordered(["Couldn't read FOO from environment", "Couldn't read BAR from environment", "Couldn't read BLAH from environment"])),
         Right: _ => assertThat(false).withMessage('Unexpected right value').is(true)
       })
     )
@@ -50,8 +52,7 @@ describe('Config Reader', () => {
 
   it('getConfigUnsafe returns a config object', () => {
     fc.assert(
-      fc.property(fc.string(), fc.integer(), fc.boolean(), fc.array(fc.string()), (str, int, bool, list) => {
-
+      fc.asyncProperty(fc.string(), fc.integer(), fc.boolean(), fc.array(fc.string()), async (str, int, bool, list) => {
         fc.pre(list.every(s => !s.includes(',')))
 
         process.env['FOO'] = str
@@ -59,7 +60,7 @@ describe('Config Reader', () => {
         process.env['BLAH'] = `${bool}`
         process.env['BAZZ'] = list.toString()
 
-        const config = readFromEnvironment({
+        const config = await readFromEnvironment({
           foo: { key: 'FOO', type: 'string' },
           bar: { key: 'BAR', type: 'number' },
           blah: { key: 'BLAH', type: 'boolean' },
@@ -78,11 +79,9 @@ describe('Config Reader', () => {
     )
   })
 
-
   it('getConfigUnsafe returns a config object from default values', () => {
     fc.assert(
-      fc.property(fc.string(), fc.integer(), fc.boolean(), fc.array(fc.string()), (str, int, bool, list) => {
-
+      fc.asyncProperty(fc.string(), fc.integer(), fc.boolean(), fc.array(fc.string()), async (str, int, bool, list) => {
         fc.pre(list.every(s => !s.includes(',')))
 
         const sanitisedList = list.map(i => i.trim()).filter(i => i.length > 0)
@@ -92,7 +91,7 @@ describe('Config Reader', () => {
         delete process.env['BLAH']
         delete process.env['BAZZ']
 
-        const config = readFromEnvironment({
+        const config = await readFromEnvironment({
           foo: { key: 'FOO', type: 'string', default: str },
           bar: { key: 'BAR', type: 'number', default: int },
           blah: { key: 'BLAH', type: 'boolean', default: bool },
@@ -111,12 +110,12 @@ describe('Config Reader', () => {
     )
   })
 
-  it('getConfigUnsafe throws an exception', () => {
+  it('getConfigUnsafe throws an exception', async () => {
     delete process.env['FOO']
     delete process.env['BAR']
     delete process.env['BLAH']
 
-    const config = readFromEnvironment({
+    const config = await readFromEnvironment({
       foo: { key: 'FOO', type: 'string' },
       bar: { key: 'BAR', type: 'number' },
       blah: { key: 'BLAH', type: 'boolean' }

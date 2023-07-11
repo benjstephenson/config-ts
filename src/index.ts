@@ -5,12 +5,7 @@ import { compose } from './pipe'
 
 const getVariable = (key: string): O.Option<string> => O.of(process.env[key])
 
-const get = <T>(key: string, fn: (v: string) => O.Option<T>): E.Either<string, T> =>
-  compose(
-    getVariable(key),
-    O.flatMap(fn),
-    O.toEither(`Couldn't read ${key} from environment`)
-  )
+const get = <T>(key: string, fn: (v: string) => O.Option<T>): E.Either<string, T> => compose(getVariable(key), O.flatMap(fn), O.toEither(`Couldn't read ${key} from environment`))
 
 /*
  * Read a `number` value from the environment, safely returning an `Either<string, number>`
@@ -38,11 +33,11 @@ export const getBoolean = (key: string): E.Either<string, boolean> => get(key, r
 /*
  * Read a `string[]` value from the environment, safely returning an `Either<string, string[]>`
  */
-export const getStringList = (key: string, delim = ','): E.Either<string, string[]> => get(key, v => {
-  const array = v.length < 1 ? [] : v.split(delim).map(x => x.trim())
-  return O.of(array.filter(i => i.length > 0))
-})
-
+export const getStringList = (key: string, delim = ','): E.Either<string, string[]> =>
+  get(key, v => {
+    const array = v.length < 1 ? [] : v.split(delim).map(x => x.trim())
+    return O.of(array.filter(i => i.length > 0))
+  })
 
 type ConfigTypeMap = {
   string: string
@@ -58,20 +53,31 @@ type ConfigType = 'number' | 'string' | 'boolean' | 'list'
 
 /*
  * This describes the config micro format used to describe config values to read
+ * An optional default value can be given that will be used if the value cannot be read from the environment
+ * An optional override function can be provided that will be called to populate the value; useful for injecting
+ * values from some external store.
  */
 type ConfigDesc<C, T extends keyof C = keyof C> = {
   key: string
   type: T
   default?: C[T]
+  override?: (key: string) => PromiseLike<C[T]>
 }
 
 type AnyConfigDesc<C = ConfigTypeMap, T extends keyof C = keyof C> = T extends keyof C ? ConfigDesc<C, T> : never
 
 type ConfigValue = { [x: string]: AnyConfigDesc }
 
+type UnvalidatedConfig<D extends ConfigValue> = { [K in keyof D]: E.Either<NonEmptyArray<string>, ConfigTypeMap[D[K]['type']]> }
 export type ValidatedConfig<D extends ConfigValue> = E.Either<NonEmptyArray<string>, { [K in keyof D]: ConfigTypeMap[D[K]['type']] }>
 
 export type Infer<T extends ValidatedConfig<ConfigValue>> = T extends E.Right<infer A> ? A : never
+
+export type Infer22<T extends ValidatedConfig<ConfigValue> | Promise<ValidatedConfig<ConfigValue>>> = T extends E.Right<infer A>
+  ? A
+  : T extends Promise<ValidatedConfig<ConfigValue>>
+  ? Infer22<Awaited<T>>
+  : never
 
 const getTypeReader = (type: ConfigType) => {
   switch (type) {
@@ -90,8 +96,7 @@ export const getConfig = E.sequenceR
 
 /*
  * Given the `ConfigValue` description, read the values from the node process environment
- * and accumulate any errors into the resulting Either.
- * The right side of the returned Either is inferred from the provided config value.
+ * and accumulate any errors into the resulting Either. * The right side of the returned Either is inferred from the provided config value.
  * @example
  * import { getConfig, getConfigUnsafe, Infer, readFromEnvironment } from './index'
  *
@@ -101,27 +106,38 @@ export const getConfig = E.sequenceR
  *   autoCommit: { key: 'DATABASE_AUTO_COMMIT', type: 'boolean', default: false }
  * })
  */
-export function readFromEnvironment<Desc extends ConfigValue>(desc: Desc): ValidatedConfig<Desc>
-export function readFromEnvironment(desc: ConfigValue): ValidatedConfig<ConfigValue> {
+export function readFromEnvironment<Desc extends ConfigValue>(desc: Desc): Promise<ValidatedConfig<Desc>>
+export async function readFromEnvironment(desc: ConfigValue): Promise<ValidatedConfig<ConfigValue>> {
   const objectKeys = Object.keys(desc)
 
-  const readConfig = objectKeys.reduce((acc, k) => {
+  const readConfig = objectKeys.reduce<Promise<UnvalidatedConfig<ConfigValue>>>(async (acc, k) => {
     const { key, type } = desc[k]
     const alt = O.of(desc[k].default)
+    const override = O.of(desc[k].override)
 
-    const value = compose(
+    const value = await compose(
       getTypeReader(type)(key),
-      E.flatMapLeft((e: string) => O.toEither([e] as NonEmptyArray<string>)(alt)),
-      E.mapLeft(e => e)
+      E.flatMapLeft(e => compose(alt, O.toEither([e] as NonEmptyArray<string>))),
+      E.map(val =>
+        compose(
+          override,
+          O.map(async fn => await fn(key)),
+          O.orElse(Promise.resolve(val))
+        )
+      ),
+      E.match({
+        Left: l => Promise.resolve(E.left(l)),
+        Right: r => r.then(E.right)
+      })
     )
 
     return {
-      ...acc,
+      ...(await acc),
       [k]: value
     }
-  }, {})
+  }, Promise.resolve({} as UnvalidatedConfig<ConfigValue>))
 
-  return getConfig(readConfig)
+  return getConfig(await readConfig)
 }
 
 /*
