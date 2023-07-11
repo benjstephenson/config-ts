@@ -1,13 +1,19 @@
-import { getConfigUnsafe, Infer, readFromEnvironment } from './index'
+import { describe, getConfigUnsafe, Infer, readFromEnvironment } from './index'
 
 const appStartup = async () => {
-  const databaseConfig = await readFromEnvironment({
+  const databaseConfig = describe({
     dbName: { key: 'DATABASE_NAME', type: 'string' },
     connectionString: { key: 'DATABASE_CONN_STR', type: 'string' },
     autoCommit: { key: 'DATABASE_AUTO_COMMIT', type: 'boolean', default: false }
   })
 
-  const awsConfig = await readFromEnvironment({
+  const awsConfig = describe({
+    region: { key: 'AWS_REGION', type: 'string' },
+    secret: { key: 'AWS_SECRET', type: 'string' },
+    services: { key: 'AWS_ENABLED_SERVICES', type: 'list' }
+  })
+
+  const awsSchema = describe({
     region: { key: 'AWS_REGION', type: 'string' },
     secret: { key: 'AWS_SECRET', type: 'string' },
     services: { key: 'AWS_ENABLED_SERVICES', type: 'list' }
@@ -17,10 +23,12 @@ const appStartup = async () => {
 
   type DbConfig = Infer<typeof databaseConfig>
 
-  const appConfig = getConfigUnsafe({
-    databaseConfig,
-    awsConfig
-  })
+  const appConfig = {
+    databaseConfig: await readFromEnvironment(databaseConfig),
+    awsConfig: await readFromEnvironment(awsConfig)
+  }
+
+  return getConfigUnsafe(appConfig)
 }
 
 const notSoGood = () => {

@@ -69,15 +69,31 @@ type AnyConfigDesc<C = ConfigTypeMap, T extends keyof C = keyof C> = T extends k
 type ConfigValue = { [x: string]: AnyConfigDesc }
 
 type UnvalidatedConfig<D extends ConfigValue> = { [K in keyof D]: E.Either<NonEmptyArray<string>, ConfigTypeMap[D[K]['type']]> }
+
 export type ValidatedConfig<D extends ConfigValue> = E.Either<NonEmptyArray<string>, { [K in keyof D]: ConfigTypeMap[D[K]['type']] }>
 
-export type Infer<T extends ValidatedConfig<ConfigValue>> = T extends E.Right<infer A> ? A : never
+export type Infer<D extends ConfigValue> = { [K in keyof D]: ConfigTypeMap[D[K]['type']] }
 
-export type Infer22<T extends ValidatedConfig<ConfigValue> | Promise<ValidatedConfig<ConfigValue>>> = T extends E.Right<infer A>
-  ? A
-  : T extends Promise<ValidatedConfig<ConfigValue>>
-  ? Infer22<Awaited<T>>
-  : never
+/*
+ * Utility type to infer the config type from a ValidatedConfig<T> for use in the application.
+ * @example
+ * const databaseConfig = readFromEnvironment({
+ *
+ * dbName: { key: "DATABASE_NAME", type: 'string' },
+ *   connectionString: { key: "DATABASE_CONN_STR", type: 'string' },
+ *   autoCommit: { key: "DATABASE_AUTO_COMMIT", type: 'boolean', default: false }
+ *  })
+ *
+ * // Grabs the type for use in the app code, type would be { region: string, secret: string, services: string[] }
+ * type DBConfig = Infer<typeof databaseConfig>
+ *
+ *  Resulting type of DBConfig is
+ *  {
+ *    dbName: string,
+ *    connectionString: string,
+ *    autoCommit: boolean
+ *  }
+ */
 
 const getTypeReader = (type: ConfigType) => {
   switch (type) {
@@ -94,6 +110,11 @@ const getTypeReader = (type: ConfigType) => {
 
 export const getConfig = E.sequenceR
 
+export function describe<Desc extends ConfigValue>(desc: Desc): Desc
+export function describe(desc: ConfigValue): ConfigValue {
+  return desc
+}
+
 /*
  * Given the `ConfigValue` description, read the values from the node process environment
  * and accumulate any errors into the resulting Either. * The right side of the returned Either is inferred from the provided config value.
@@ -106,7 +127,8 @@ export const getConfig = E.sequenceR
  *   autoCommit: { key: 'DATABASE_AUTO_COMMIT', type: 'boolean', default: false }
  * })
  */
-export function readFromEnvironment<Desc extends ConfigValue>(desc: Desc): Promise<ValidatedConfig<Desc>>
+
+export async function readFromEnvironment<Desc extends ConfigValue>(desc: Desc): Promise<ValidatedConfig<Desc>>
 export async function readFromEnvironment(desc: ConfigValue): Promise<ValidatedConfig<ConfigValue>> {
   const objectKeys = Object.keys(desc)
 
@@ -138,30 +160,6 @@ export async function readFromEnvironment(desc: ConfigValue): Promise<ValidatedC
   }, Promise.resolve({} as UnvalidatedConfig<ConfigValue>))
 
   return getConfig(await readConfig)
-}
-
-/*
- * Utility type to infer the config type from a ValidatedConfig<T> for use in the application.
- * @example
- * const databaseConfig = readFromEnvironment({
- *
- * dbName: { key: "DATABASE_NAME", type: 'string' },
- *   connectionString: { key: "DATABASE_CONN_STR", type: 'string' },
- *   autoCommit: { key: "DATABASE_AUTO_COMMIT", type: 'boolean', default: false }
- *  })
- *
- * // Grabs the type for use in the app code, type would be { region: string, secret: string, services: string[] }
- * type DBConfig = Infer<typeof databaseConfig>
- *
- *  Resulting type of DBConfig is
- *  {
- *    dbName: string,
- *    connectionString: string,
- *    autoCommit: boolean
- *  }
- */
-export type InferConfig<Rec extends Record<string, E.Either<NonEmptyArray<string>, any>>> = {
-  [K in keyof Rec]: Rec[K] extends E.Either<NonEmptyArray<string>, infer A> ? A : never
 }
 
 export function getConfigUnsafe<Rec extends Record<string, E.Either<NonEmptyArray<string>, any>>>(
