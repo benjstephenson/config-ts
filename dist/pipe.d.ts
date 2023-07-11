@@ -1,0 +1,11 @@
+export declare function compose<A>(a: A): A;
+export declare function compose<A, B>(a: A, ab: (a: A) => B): B;
+export declare function compose<A, B, C>(a: A, ab: (a: A) => B, bc: (b: B) => C): C;
+export declare function compose<A, B, C, D>(a: A, ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D): D;
+export declare function compose<A, B, C, D, E>(a: A, ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D, de: (d: E) => E): D;
+export declare function compose<A, B, C, D, E, F>(a: A, ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D, de: (d: E) => E, ef: (e: E) => F): D;
+export declare function pipe<Args extends ReadonlyArray<any>, A>(fa: (...a: Args) => A): (...a: Args) => A;
+export declare function pipe<Args extends ReadonlyArray<any>, A, B>(fa: (...a: Args) => A, ab: (a: A) => B): (...a: Args) => B;
+export declare function pipe<Args extends ReadonlyArray<any>, A, B, C>(fa: (...a: Args) => A, ab: (a: A) => B, bc: (b: B) => C): (...a: Args) => C;
+export declare function pipe<Args extends ReadonlyArray<any>, A, B, C, D>(fa: (...a: Args) => A, ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D): (...a: Args) => D;
+export declare function pipe<Args extends ReadonlyArray<any>, A, B, C, D, E>(fa: (...a: Args) => A, ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D, de: (d: D) => E): (...a: Args) => E;
