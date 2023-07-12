@@ -1,3 +1,9 @@
+## [2.0.1](https://github.com/benjstephenson/config-ts/compare/v2.0.0...v2.0.1) (2023-07-12)
+
+### Bug Fixes
+
+- add missing main entry to package.json ([466d205](https://github.com/benjstephenson/config-ts/commit/466d2055da34b8a2ea1c00e681120c0e2802eea5))
+
 # [2.0.0](https://github.com/benjstephenson/config-ts/compare/v1.0.0...v2.0.0) (2023-07-11)
 
 - feat!: separate config schema def from reading from env ([59f7eef](https://github.com/benjstephenson/config-ts/commit/59f7eef8f06290bfbbfcec437d819c9344659ca4))
