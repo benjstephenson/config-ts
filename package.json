@@ -2,6 +2,7 @@
   "name": "@benjstephenson/config-ts",
   "version": "0.0.0-semanitc-release",
   "description": "Read config values from a node environment",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
