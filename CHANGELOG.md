@@ -1,3 +1,11 @@
+# [3.0.0](https://github.com/benjstephenson/config-ts/compare/v2.0.1...v3.0.0) (2023-07-18)
+
+- feat!: update override function usage ([928b6fd](https://github.com/benjstephenson/config-ts/commit/928b6fd862419942b8f89a15fc466a54537c17a9))
+
+### BREAKING CHANGES
+
+- order of alt application changed
+
 ## [2.0.1](https://github.com/benjstephenson/config-ts/compare/v2.0.0...v2.0.1) (2023-07-12)
 
 ### Bug Fixes

@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.toEither = exports.flatMap = exports.orElse = exports.map = exports.isNone = exports.isSome = exports.of = exports.some = exports.none = void 0;
+exports.toEither = exports.flatMap = exports.orElse = exports.map = exports.ap = exports.isNone = exports.isSome = exports.of = exports.some = exports.none = void 0;
 const E = __importStar(require("./Either"));
 const none = () => ({ _tag: 'none' });
 exports.none = none;
@@ -38,6 +38,8 @@ const isSome = (fa) => fa._tag === 'some';
 exports.isSome = isSome;
 const isNone = (fa) => fa._tag === 'none';
 exports.isNone = isNone;
+const ap = (fa) => (fab) => (0, exports.isSome)(fab) && (0, exports.isSome)(fa) ? (0, exports.some)(fab.value(fa.value)) : (0, exports.none)();
+exports.ap = ap;
 const map = (f) => (fa) => (0, exports.isSome)(fa) ? (0, exports.some)(f(fa.value)) : fa;
 exports.map = map;
 const orElse = (a) => (fa) => (0, exports.isSome)(fa) ? fa.value : a;

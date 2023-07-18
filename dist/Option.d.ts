@@ -12,6 +12,7 @@ export declare const some: <A>(a: A) => Some<A>;
 export declare const of: <A>(a: A | null | undefined) => Option<A>;
 export declare const isSome: <A>(fa: Option<A>) => fa is Some<A>;
 export declare const isNone: <A>(fa: Option<A>) => fa is None;
+export declare const ap: <A, B>(fa: Option<A>) => (fab: Option<(a: A) => B>) => Option<B>;
 export declare const map: <A, B>(f: (a: A) => B) => (fa: Option<A>) => Option<B>;
 export declare const orElse: <A>(a: A) => (fa: Option<A>) => A;
 export declare const flatMap: <A, B>(f: (a: A) => Option<B>) => (fa: Option<A>) => Option<B>;

@@ -1,22 +1,19 @@
 import * as E from './Either';
 import { NonEmptyArray } from './NonEmptyArray';
-export declare const getInt: (key: string) => E.Either<string, number>;
-export declare const getString: (key: string) => E.Either<string, string>;
-export declare const getBoolean: (key: string) => E.Either<string, boolean>;
-export declare const getStringList: (key: string, delim?: string) => E.Either<string, string[]>;
+export declare const parseString: (key: string, value: string) => E.Either<string, string>;
 type ConfigTypeMap = {
     string: string;
     boolean: boolean;
     number: number;
     list: string[];
 };
-type ConfigDesc<C, T extends keyof C = keyof C> = {
+type ConfigDesc<C extends ConfigTypeMap, T extends keyof C = keyof C> = {
     key: string;
     type: T;
     default?: C[T];
-    override?: (key: string) => PromiseLike<C[T]>;
+    override?: (value: string) => Promise<string>;
 };
-type AnyConfigDesc<C = ConfigTypeMap, T extends keyof C = keyof C> = T extends keyof C ? ConfigDesc<C, T> : never;
+type AnyConfigDesc = ConfigDesc<ConfigTypeMap, keyof ConfigTypeMap>;
 type ConfigValue = {
     [x: string]: AnyConfigDesc;
 };

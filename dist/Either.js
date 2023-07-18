@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sequenceR = exports.match = exports.flatMapLeft = exports.mapLeft = exports.flatMap = exports.map = exports.isRight = exports.isLeft = exports.right = exports.left = void 0;
+exports.sequenceR = exports.flatten = exports.match = exports.flatMapLeft = exports.mapLeft = exports.flatMap = exports.map = exports.isRight = exports.isLeft = exports.right = exports.left = void 0;
 const NonEmptyArray_1 = require("./NonEmptyArray");
 const pipe_1 = require("./pipe");
 const left = (e) => ({ _tag: 'left', value: e });
@@ -21,6 +21,8 @@ const flatMapLeft = (f) => (fa) => (0, exports.isLeft)(fa) ? f(fa.value) : fa; /
 exports.flatMapLeft = flatMapLeft;
 const match = (o) => (fa) => (0, exports.isLeft)(fa) ? o.Left(fa.value) : o.Right(fa.value);
 exports.match = match;
+const flatten = (fa) => (0, pipe_1.compose)(fa, (0, exports.match)({ Left: exports.left, Right: x => x }));
+exports.flatten = flatten;
 function sequenceR(record) {
     const [head, ...tail] = Object.keys(record);
     const initial = (0, pipe_1.compose)(record[head], (0, exports.mapLeft)(e => e), (0, exports.map)(v => ({ [head]: v })));

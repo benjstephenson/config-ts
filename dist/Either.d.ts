@@ -20,6 +20,7 @@ export declare const match: <E, A, B>(o: {
     Left: (e: E) => B;
     Right: (a: A) => B;
 }) => (fa: Either<E, A>) => B;
+export declare const flatten: <E, A>(fa: Either<E, Either<E, A>>) => Either<E, A>;
 export declare function sequenceR<T, R extends Record<string, Either<NonEmptyArray<string>, T>>>(record: R): Either<NonEmptyArray<string>, {
     [K in keyof R]: R[K] extends Either<NonEmptyArray<string>, infer A> ? A : never;
 }>;

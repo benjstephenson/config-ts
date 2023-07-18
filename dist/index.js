@@ -32,43 +32,31 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getConfigUnsafe = exports.readFromEnvironment = exports.describe = exports.getConfig = exports.getStringList = exports.getBoolean = exports.getString = exports.getInt = void 0;
+exports.getConfigUnsafe = exports.readFromEnvironment = exports.describe = exports.getConfig = exports.parseString = void 0;
 const E = __importStar(require("./Either"));
 const O = __importStar(require("./Option"));
 const pipe_1 = require("./pipe");
 const getVariable = (key) => O.of(process.env[key]);
 const get = (key, fn) => (0, pipe_1.compose)(getVariable(key), O.flatMap(fn), O.toEither(`Couldn't read ${key} from environment`));
+const getRawVariable = (key) => (0, pipe_1.compose)(getVariable(key), O.toEither(`Couldn't read ${key} from environment`));
 /*
  * Read a `number` value from the environment, safely returning an `Either<string, number>`
  */
-const readInt = v => {
-    const attempt = parseInt(v);
-    return isNaN(attempt) ? O.none() : O.of(attempt);
-};
-const getInt = (key) => get(key, readInt);
-exports.getInt = getInt;
+const parseInteger = (key, v) => (0, pipe_1.compose)(parseInt(v), attempt => (isNaN(attempt) ? O.none() : O.of(attempt)), O.toEither(`Failed to read integer [${v}] named ${key}`));
+// export const getInt = (key: string): E.Either<string, number> => get(key, readInt)
 /*
  * Read a `string` value from the environment, safely returning an `Either<string, string>`
  */
-const getString = (key) => get(key, O.of);
-exports.getString = getString;
+const parseString = (key, value) => E.right(value);
+exports.parseString = parseString;
 /*
  * Read a `boolean` value from the environment, safely returning an `Either<string, boolean>`
  */
-const readBoolean = v => {
-    const cased = v.toLowerCase();
-    return cased === 'true' ? O.of(true) : cased === 'false' ? O.of(false) : O.none();
-};
-const getBoolean = (key) => get(key, readBoolean);
-exports.getBoolean = getBoolean;
+const parseBoolean = (k, v) => (0, pipe_1.compose)(v.toLowerCase(), cased => (cased === 'true' ? O.of(true) : cased === 'false' ? O.of(false) : O.none()), O.toEither(`Failed to read boolean [${v}] named ${k}`));
 /*
  * Read a `string[]` value from the environment, safely returning an `Either<string, string[]>`
  */
-const getStringList = (key, delim = ',') => get(key, v => {
-    const array = v.length < 1 ? [] : v.split(delim).map(x => x.trim());
-    return O.of(array.filter(i => i.length > 0));
-});
-exports.getStringList = getStringList;
+const parseStringList = (key, raw, delim = ',') => (0, pipe_1.compose)(raw.length < 1 ? [] : raw.split(delim).map(x => x.trim()), array => O.of(array.filter(i => i.length > 0)), O.toEither(`Failed to read string array [${raw}] named ${key}`));
 /*
  * Utility type to infer the config type from a ValidatedConfig<T> for use in the application.
  * @example
@@ -92,13 +80,13 @@ exports.getStringList = getStringList;
 const getTypeReader = (type) => {
     switch (type) {
         case 'string':
-            return exports.getString;
+            return exports.parseString;
         case 'number':
-            return exports.getInt;
+            return parseInteger;
         case 'boolean':
-            return exports.getBoolean;
+            return parseBoolean;
         case 'list':
-            return exports.getStringList;
+            return parseStringList;
     }
 };
 exports.getConfig = E.sequenceR;
@@ -113,9 +101,11 @@ function readFromEnvironment(desc) {
             const { key, type } = desc[k];
             const alt = O.of(desc[k].default);
             const override = O.of(desc[k].override);
-            const value = yield (0, pipe_1.compose)(getTypeReader(type)(key), E.flatMapLeft(e => (0, pipe_1.compose)(alt, O.toEither([e]))), E.map(val => (0, pipe_1.compose)(override, O.map((fn) => __awaiter(this, void 0, void 0, function* () { return yield fn(key); })), O.orElse(Promise.resolve(val)))), E.match({
+            const value = yield (0, pipe_1.compose)(getRawVariable(key), E.map(val => (0, pipe_1.compose)(override, O.map((fn) => __awaiter(this, void 0, void 0, function* () { return yield fn(val); })), O.orElse(Promise.resolve(val)))), E.match({
                 Left: l => Promise.resolve(E.left(l)),
                 Right: r => r.then(E.right)
+            }), (promise) => __awaiter(this, void 0, void 0, function* () {
+                return (0, pipe_1.compose)(yield promise, E.map(value => getTypeReader(type)(key, value)), E.match({ Left: E.left, Right: r => r }), E.flatMapLeft(e => (0, pipe_1.compose)(alt, O.toEither([e]))));
             }));
             return Object.assign(Object.assign({}, (yield acc)), { [k]: value });
         }), Promise.resolve({}));
