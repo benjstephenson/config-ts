@@ -44,6 +44,8 @@ export const match =
   (fa: Either<E, A>) =>
     isLeft(fa) ? o.Left(fa.value) : o.Right(fa.value)
 
+export const flatten = <E, A>(fa: Either<E, Either<E, A>>): Either<E, A> => compose(fa, match({ Left: left, Right: x => x }))
+
 export function sequenceR<T, R extends Record<string, Either<NonEmptyArray<string>, T>>>(
   record: R
 ): Either<NonEmptyArray<string>, { [K in keyof R]: R[K] extends Either<NonEmptyArray<string>, infer A> ? A : never }>

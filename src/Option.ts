@@ -1,4 +1,5 @@
 import * as E from './Either'
+import { compose } from './pipe'
 
 export type Option<A> = Some<A> | None
 
@@ -21,6 +22,11 @@ export const of = <A>(a: A | undefined | null): Option<A> => (a === undefined ||
 
 export const isSome = <A>(fa: Option<A>): fa is Some<A> => fa._tag === 'some'
 export const isNone = <A>(fa: Option<A>): fa is None => fa._tag === 'none'
+
+export const ap =
+  <A, B>(fa: Option<A>) =>
+  (fab: Option<(a: A) => B>): Option<B> =>
+    isSome(fab) && isSome(fa) ? some(fab.value(fa.value)) : none()
 
 export const map =
   <A, B>(f: (a: A) => B) =>

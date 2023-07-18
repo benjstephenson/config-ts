@@ -2,42 +2,41 @@ import * as E from './Either'
 import * as O from './Option'
 import { NonEmptyArray } from './NonEmptyArray'
 import { compose } from './pipe'
+import { integer } from 'fast-check'
 
 const getVariable = (key: string): O.Option<string> => O.of(process.env[key])
 
 const get = <T>(key: string, fn: (v: string) => O.Option<T>): E.Either<string, T> => compose(getVariable(key), O.flatMap(fn), O.toEither(`Couldn't read ${key} from environment`))
 
+const getRawVariable = (key: string): E.Either<string, string> => compose(getVariable(key), O.toEither(`Couldn't read ${key} from environment`))
+
 /*
  * Read a `number` value from the environment, safely returning an `Either<string, number>`
  */
-const readInt: (v: string) => O.Option<number> = v => {
-  const attempt = parseInt(v)
-  return isNaN(attempt) ? O.none() : O.of(attempt)
-}
-export const getInt = (key: string): E.Either<string, number> => get(key, readInt)
+const parseInteger: (key: string, v: string) => E.Either<string, number> = (key, v) =>
+  compose(parseInt(v), attempt => (isNaN(attempt) ? O.none() : O.of(attempt)), O.toEither(`Failed to read integer [${v}] named ${key}`))
+// export const getInt = (key: string): E.Either<string, number> => get(key, readInt)
 
 /*
  * Read a `string` value from the environment, safely returning an `Either<string, string>`
  */
-export const getString = (key: string): E.Either<string, string> => get(key, O.of)
+export const parseString = (key: string, value: string): E.Either<string, string> => E.right(value)
 
 /*
  * Read a `boolean` value from the environment, safely returning an `Either<string, boolean>`
  */
-const readBoolean: (v: string) => O.Option<boolean> = v => {
-  const cased = v.toLowerCase()
-  return cased === 'true' ? O.of(true) : cased === 'false' ? O.of(false) : O.none()
-}
-export const getBoolean = (key: string): E.Either<string, boolean> => get(key, readBoolean)
+const parseBoolean: (key: string, v: string) => E.Either<string, boolean> = (k, v) =>
+  compose(v.toLowerCase(), cased => (cased === 'true' ? O.of(true) : cased === 'false' ? O.of(false) : O.none()), O.toEither(`Failed to read boolean [${v}] named ${k}`))
 
 /*
  * Read a `string[]` value from the environment, safely returning an `Either<string, string[]>`
  */
-export const getStringList = (key: string, delim = ','): E.Either<string, string[]> =>
-  get(key, v => {
-    const array = v.length < 1 ? [] : v.split(delim).map(x => x.trim())
-    return O.of(array.filter(i => i.length > 0))
-  })
+const parseStringList = (key: string, raw: string, delim = ','): E.Either<string, string[]> =>
+  compose(
+    raw.length < 1 ? [] : raw.split(delim).map(x => x.trim()),
+    array => O.of(array.filter(i => i.length > 0)),
+    O.toEither(`Failed to read string array [${raw}] named ${key}`)
+  )
 
 type ConfigTypeMap = {
   string: string
@@ -57,18 +56,18 @@ type ConfigType = 'number' | 'string' | 'boolean' | 'list'
  * An optional override function can be provided that will be called to populate the value; useful for injecting
  * values from some external store.
  */
-type ConfigDesc<C, T extends keyof C = keyof C> = {
+type ConfigDesc<C extends ConfigTypeMap, T extends keyof C = keyof C> = {
   key: string
   type: T
   default?: C[T]
-  override?: (key: string) => PromiseLike<C[T]>
+  override?: (value: string) => Promise<string>
 }
 
-type AnyConfigDesc<C = ConfigTypeMap, T extends keyof C = keyof C> = T extends keyof C ? ConfigDesc<C, T> : never
+type AnyConfigDesc = ConfigDesc<ConfigTypeMap, keyof ConfigTypeMap>
 
 type ConfigValue = { [x: string]: AnyConfigDesc }
 
-type UnvalidatedConfig<D extends ConfigValue> = { [K in keyof D]: E.Either<NonEmptyArray<string>, ConfigTypeMap[D[K]['type']]> }
+type UnvalidatedConfig = { [K in keyof ConfigValue]: E.Either<NonEmptyArray<string>, ConfigTypeMap[ConfigValue[K]['type']]> }
 
 export type ValidatedConfig<D extends ConfigValue> = E.Either<NonEmptyArray<string>, { [K in keyof D]: ConfigTypeMap[D[K]['type']] }>
 
@@ -98,13 +97,13 @@ export type Infer<D extends ConfigValue> = { [K in keyof D]: ConfigTypeMap[D[K][
 const getTypeReader = (type: ConfigType) => {
   switch (type) {
     case 'string':
-      return getString
+      return parseString
     case 'number':
-      return getInt
+      return parseInteger
     case 'boolean':
-      return getBoolean
+      return parseBoolean
     case 'list':
-      return getStringList
+      return parseStringList
   }
 }
 
@@ -127,37 +126,42 @@ export function describe(desc: ConfigValue): ConfigValue {
  *   autoCommit: { key: 'DATABASE_AUTO_COMMIT', type: 'boolean', default: false }
  * })
  */
-
 export async function readFromEnvironment<Desc extends ConfigValue>(desc: Desc): Promise<ValidatedConfig<Desc>>
 export async function readFromEnvironment(desc: ConfigValue): Promise<ValidatedConfig<ConfigValue>> {
   const objectKeys = Object.keys(desc)
 
-  const readConfig = objectKeys.reduce<Promise<UnvalidatedConfig<ConfigValue>>>(async (acc, k) => {
+  const readConfig = objectKeys.reduce<Promise<UnvalidatedConfig>>(async (acc, k) => {
     const { key, type } = desc[k]
     const alt = O.of(desc[k].default)
     const override = O.of(desc[k].override)
 
     const value = await compose(
-      getTypeReader(type)(key),
-      E.flatMapLeft(e => compose(alt, O.toEither([e] as NonEmptyArray<string>))),
+      getRawVariable(key),
       E.map(val =>
         compose(
           override,
-          O.map(async fn => await fn(key)),
+          O.map(async fn => await fn(val)),
           O.orElse(Promise.resolve(val))
         )
       ),
       E.match({
         Left: l => Promise.resolve(E.left(l)),
         Right: r => r.then(E.right)
-      })
+      }),
+      async promise =>
+        compose(
+          await promise,
+          E.map(value => getTypeReader(type)(key, value)),
+          E.match({ Left: E.left, Right: r => r }),
+          E.flatMapLeft(e => compose(alt, O.toEither([e] as NonEmptyArray<string>)))
+        )
     )
 
     return {
       ...(await acc),
       [k]: value
     }
-  }, Promise.resolve({} as UnvalidatedConfig<ConfigValue>))
+  }, Promise.resolve({} as UnvalidatedConfig))
 
   return getConfig(await readConfig)
 }
